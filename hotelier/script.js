@@ -1,107 +1,889 @@
-const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
-const ld=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}},sv=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch{}};
-const fmt=n=>'₹'+Math.round(n).toLocaleString('en-IN'),esc=s=>String(s).replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';');
-const iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-const pd=s=>new Date(s+'T12:00'),add=(s,n)=>{const d=pd(s);d.setDate(d.getDate()+n);return iso(d)},nts=(a,b)=>a&&b?Math.round((pd(b)-pd(a))/864e5):0,today=iso(new Date());
-const AM={wifi:'Wi‑Fi',breakfast:'Breakfast',parking:'Parking',pool:'Pool',spa:'Spa',balcony:'Balcony',kitchen:'Kitchen',workspace:'Workspace'};
-const IMG={hero:'images/hero.jpg',cozy:'images/cozy.jpg',modern:'images/modern.jpg',exec:'images/exec.jpg',garden:'images/garden.jpg',bhk:'images/bhk.jpg',suite:'images/suite.jpg',lobby:'images/lobby.jpg',spa:'images/spa.jpg',dine:'images/dine.jpg',lounge:'images/lounge.jpg'};
-const R=[{id:1,n:'Harbour Standard',p:2200,c:2,r:4.1,i:'cozy',a:['wifi','workspace']},{id:2,n:'Deluxe Bay View',p:4000,c:2,r:4.4,i:'modern',a:['wifi','breakfast','balcony','workspace']},{id:3,n:'Executive Studio',p:5200,c:3,r:4.5,i:'exec',a:['wifi','breakfast','workspace','parking']},{id:4,n:'Garden Residence',p:6000,c:4,r:4.6,i:'garden',a:['wifi','breakfast','parking','kitchen','balcony']},{id:5,n:'Family 1BHK',p:5800,c:5,r:4.3,i:'bhk',a:['wifi','breakfast','parking','kitchen']},{id:6,n:'Luxury Sea Suite',p:9500,c:4,r:4.9,i:'suite',a:['wifi','breakfast','pool','spa','balcony','workspace']}];
-const EX={bf:['Breakfast (₹500 per guest per night)',500],pk:['Airport pickup (₹1,200)',1200],sp:['Spa credit (₹2,500)',2500]};
-function quote(r,n,g,x){const base=r.p*n,bf=x.bf?500*n*g:0,ex=(x.pk?1200:0)+(x.sp?2500:0),sub=base+bf+ex,rate=r.p>7500?.18:.12,tax=sub*rate;return{base,bf,ex,sub,rate,tax,total:sub+tax}}
-const seed=[...Array(28)].map((_,i)=>{const n=2+i%4,s=add(today,-150+i*7+(i*3)%5),r=R[i%6];return{id:'S'+i,room:r.id,in:s,out:add(s,n),g:1+i%3,st:i%9==4?'cancelled':'confirmed',n:'Sample guest '+(i+1),total:quote(r,n,1,{}).total}});
-const S={in:add(today,14),out:add(today,17),g:2,max:12000,am:[],sort:'rec',saved:false,cmp:[],wl:ld('hw',[]),rv:ld('hr',[]),bk:ld('hb',[])};
-const all=()=>seed.concat(S.bk),free=(id,a,b)=>!all().some(x=>x.room==id&&x.st!='cancelled'&&x.in<b&&a<x.out),room=id=>R.find(r=>r.id==id);
-function toast(m){const t=document.createElement('div'),T=$('#toasts');t.textContent=m;T.append(t);try{T.hidePopover()}catch{}try{T.showPopover()}catch{}setTimeout(()=>t.remove(),3200)}
-function score(r){const ref=[...S.wl,...S.rv].map(room).filter(Boolean),pref=ref.length?ref.reduce((a,x)=>a+x.p,0)/ref.length:S.max*.5;
-const B=1-Math.min(1,Math.abs(r.p-pref)/pref),L=r.c>=S.g?1-Math.min(.5,(r.c-S.g)*.15):0,A=S.am.length?S.am.filter(a=>r.a.includes(a)).length/S.am.length:r.a.length/8;return .3*B+.2*L+.25*A+.25*(r.r/5)}
-function list(){let l=R.filter(r=>r.p<=S.max&&r.c>=S.g&&S.am.every(a=>r.a.includes(a))&&(!S.saved||S.wl.includes(r.id)));const k={pa:(a,b)=>a.p-b.p,pd:(a,b)=>b.p-a.p,rt:(a,b)=>b.r-a.r,rec:(a,b)=>score(b)-score(a)}[S.sort];return l.sort(k)}
-function card(r,mini){const n=nts(S.in,S.out),av=n>0&&free(r.id,S.in,S.out);
-return`<article class="card"><img src="${IMG[r.i]}" alt="${r.n}" data-a="img" data-id="${r.id}"><div><div class="row"><h3 style="font-size:20px">${r.n}</h3><span class="mut">★ ${r.r}</span></div>
-<div><span class="price">${fmt(r.p)}</span> <span class="mut">/ night · up to ${r.c} guests</span></div>${mini?'':`<div class="mut">${r.a.map(a=>AM[a]).join(' · ')}</div>`}
-${n>0?`<b class="${av?'ok':'no'}">${av?'Available for your dates':'Booked for your dates'}</b>`:''}
-<div class="row"><button class="btn" data-a="book" data-id="${r.id}">Book</button>${mini?'':`<button class="btn g" data-a="wl" data-id="${r.id}" aria-pressed="${S.wl.includes(r.id)}">${S.wl.includes(r.id)?'♥ Saved':'♡ Save'}</button><button class="btn g" data-a="cp" data-id="${r.id}" aria-pressed="${S.cmp.includes(r.id)}">${S.cmp.includes(r.id)?'✓ Comparing':'⚖ Compare'}</button>`}</div></div></article>`}
-function render(){const l=list();$('#grid').innerHTML=l.length?l.map(r=>card(r)).join(''):'<p class="mut">No rooms match these filters. Try a higher budget or fewer amenities.</p>';
-$('#picks').innerHTML=R.slice().sort((a,b)=>score(b)-score(a)).slice(0,3).map(r=>card(r,1)).join('');
-const rv=S.rv.map(room).filter(Boolean);$('#rvw').hidden=!rv.length;$('#rv').innerHTML=rv.map(r=>card(r,1)).join('');
-$('#wc').textContent=S.wl.length;$('#mxv').textContent=fmt(S.max);$('#mx').value=S.max;$('#so').value=S.sort;$('#sv').setAttribute('aria-pressed',S.saved);
-$$('#am .chip').forEach(c=>c.setAttribute('aria-pressed',S.am.includes(c.dataset.k)));$('#ci').value=S.in;$('#co').value=S.out;$('#gs').value=S.g;compare();admin()}
-function compare(){const c=S.cmp.map(room);$('#cmp').innerHTML=c.length<2?'<p class="mut">Select at least two rooms to compare.</p>':`<table><tr><th></th>${c.map(r=>`<th>${r.n}</th>`).join('')}</tr>
-<tr><td>Price / night</td>${c.map(r=>`<td>${fmt(r.p)}</td>`).join('')}</tr><tr><td>Capacity</td>${c.map(r=>`<td>${r.c} guests</td>`).join('')}</tr><tr><td>Rating</td>${c.map(r=>`<td>★ ${r.r}</td>`).join('')}</tr>
-${Object.keys(AM).map(k=>`<tr><td>${AM[k]}</td>${c.map(r=>`<td class="${r.a.includes(k)?'ok':'no'}">${r.a.includes(k)?'Yes':'No'}</td>`).join('')}</tr>`).join('')}<tr><td></td>${c.map(r=>`<td><button class="btn" data-a="book" data-id="${r.id}">Book</button></td>`).join('')}</tr></table>`}
-function admin(){const a=all(),ok=a.filter(x=>x.st!='cancelled'),rev=ok.reduce((s,x)=>s+x.total,0);let occ=0;for(let d=-30;d<0;d++){const s=add(today,d);R.forEach(r=>{if(!free(r.id,s,add(s,1)))occ++})}
-$('#st').innerHTML=`<div><b>${ok.length}</b>Reservations</div><div><b>${fmt(rev)}</b>Revenue</div><div><b>${Math.round(occ/1.8)}%</b>Occupancy, last 30 days</div><div><b>${Math.round(100*(a.length-ok.length)/a.length)}%</b>Cancellation rate</div>`;
-const m={};ok.forEach(x=>{const k=x.in.slice(0,7);m[k]=(m[k]||0)+x.total});const ks=Object.keys(m).sort().slice(-6),mx=Math.max(...ks.map(k=>m[k]),1);
-$('#c1').innerHTML=ks.map(k=>`<div class="br"><span>${k}</span><i style="width:${100*m[k]/mx}%"></i><span>${fmt(m[k])}</span></div>`).join('');
-const rc=R.map(r=>[r.n,ok.filter(x=>x.room==r.id).length]),rm=Math.max(...rc.map(x=>x[1]),1);$('#c2').innerHTML=rc.map(x=>`<div class="br"><span>${x[0].split(' ')[0]}</span><i style="width:${100*x[1]/rm}%"></i><span>${x[1]}</span></div>`).join('');
-$('#bt').innerHTML='<tr><th>Guest</th><th>Room</th><th>Stay</th><th>Total</th><th>Status</th></tr>'+a.slice().sort((x,y)=>y.in<x.in?-1:1).slice(0,8).map(x=>`<tr><td>${esc(x.n)}</td><td>${room(x.room).n}</td><td>${x.in} → ${x.out}</td><td>${fmt(x.total)}</td><td>${x.st=='cancelled'?'Cancelled':`Confirmed <button class="btn g" data-a="cx" data-id="${x.id}">Cancel</button>`}</td></tr>`).join('')}
+const $ = s => document.querySelector(s),
+      $$ = s => [...document.querySelectorAll(s)];
+
+const ld = (k, d) => {
+  try { return JSON.parse(localStorage.getItem(k)) ?? d; }
+  catch { return d; }
+};
+
+const sv = (k, v) => {
+  try { localStorage.setItem(k, JSON.stringify(v)); }
+  catch {}
+};
+
+const fmt = n => '₹' + Math.round(n).toLocaleString('en-IN');
+const esc = s => String(s).replace(/[&<>"']/g, c => '&#' + c.charCodeAt(0) + ';');
+const iso = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+const pd = s => new Date(s + 'T12:00');
+const add = (s, n) => { const d = pd(s); d.setDate(d.getDate() + n); return iso(d); };
+const nts = (a, b) => (a && b ? Math.round((pd(b) - pd(a)) / 864e5) : 0);
+const today = iso(new Date());
+
+const AM = {
+  wifi: 'Wi‑Fi',
+  breakfast: 'Breakfast',
+  parking: 'Parking',
+  pool: 'Pool',
+  spa: 'Spa',
+  balcony: 'Balcony',
+  kitchen: 'Kitchen',
+  workspace: 'Workspace',
+};
+
+const IMG = {
+  hero: 'images/hero.jpg',
+  cozy: 'images/cozy.jpg',
+  modern: 'images/modern.jpg',
+  exec: 'images/exec.jpg',
+  garden: 'images/garden.jpg',
+  bhk: 'images/bhk.jpg',
+  suite: 'images/suite.jpg',
+  lobby: 'images/lobby.jpg',
+  spa: 'images/spa.jpg',
+  dine: 'images/dine.jpg',
+  lounge: 'images/lounge.jpg',
+};
+
+const R = [
+  { id: 1, n: 'Harbour Standard', p: 2200, c: 2, r: 4.1, i: 'cozy',   a: ['wifi', 'workspace'] },
+  { id: 2, n: 'Deluxe Bay View',  p: 4000, c: 2, r: 4.4, i: 'modern', a: ['wifi', 'breakfast', 'balcony', 'workspace'] },
+  { id: 3, n: 'Executive Studio', p: 5200, c: 3, r: 4.5, i: 'exec',   a: ['wifi', 'breakfast', 'workspace', 'parking'] },
+  { id: 4, n: 'Garden Residence', p: 6000, c: 4, r: 4.6, i: 'garden', a: ['wifi', 'breakfast', 'parking', 'kitchen', 'balcony'] },
+  { id: 5, n: 'Family 1BHK',      p: 5800, c: 5, r: 4.3, i: 'bhk',    a: ['wifi', 'breakfast', 'parking', 'kitchen'] },
+  { id: 6, n: 'Luxury Sea Suite', p: 9500, c: 4, r: 4.9, i: 'suite',  a: ['wifi', 'breakfast', 'pool', 'spa', 'balcony', 'workspace'] },
+];
+
+const EX = {
+  bf: ['Breakfast (₹500 per guest per night)', 500],
+  pk: ['Airport pickup (₹1,200)', 1200],
+  sp: ['Spa credit (₹2,500)', 2500],
+};
+
+function quote(r, n, g, x) {
+  const base = r.p * n,
+        bf = x.bf ? 500 * n * g : 0,
+        ex = (x.pk ? 1200 : 0) + (x.sp ? 2500 : 0),
+        sub = base + bf + ex,
+        rate = r.p > 7500 ? 0.18 : 0.12,
+        tax = sub * rate;
+  return { base, bf, ex, sub, rate, tax, total: sub + tax };
+}
+
+const seed = [...Array(28)].map((_, i) => {
+  const n = 2 + (i % 4),
+        s = add(today, -150 + i * 7 + (i * 3) % 5),
+        r = R[i % 6];
+  return {
+    id: 'S' + i,
+    room: r.id,
+    in: s,
+    out: add(s, n),
+    g: 1 + (i % 3),
+    st: i % 9 == 4 ? 'cancelled' : 'confirmed',
+    n: 'Sample guest ' + (i + 1),
+    total: quote(r, n, 1, {}).total,
+  };
+});
+
+const S = {
+  in: add(today, 14),
+  out: add(today, 17),
+  g: 2,
+  max: 12000,
+  am: [],
+  sort: 'rec',
+  saved: false,
+  cmp: [],
+  wl: ld('hw', []),
+  rv: ld('hr', []),
+  bk: ld('hb', []),
+};
+
+const all = () => seed.concat(S.bk);
+const free = (id, a, b) =>
+  !all().some(x => x.room == id && x.st != 'cancelled' && x.in < b && a < x.out);
+const room = id => R.find(r => r.id == id);
+
+function toast(m) {
+  const t = document.createElement('div'),
+        T = $('#toasts');
+  t.textContent = m;
+  T.append(t);
+  try { T.hidePopover(); } catch {}
+  try { T.showPopover(); } catch {}
+  setTimeout(() => t.remove(), 3200);
+}
+
+function score(r) {
+  const ref = [...S.wl, ...S.rv].map(room).filter(Boolean),
+        pref = ref.length ? ref.reduce((a, x) => a + x.p, 0) / ref.length : S.max * 0.5;
+  const B = 1 - Math.min(1, Math.abs(r.p - pref) / pref),
+        L = r.c >= S.g ? 1 - Math.min(0.5, (r.c - S.g) * 0.15) : 0,
+        A = S.am.length
+          ? S.am.filter(a => r.a.includes(a)).length / S.am.length
+          : r.a.length / 8;
+  return 0.3 * B + 0.2 * L + 0.25 * A + 0.25 * (r.r / 5);
+}
+
+function list() {
+  let l = R.filter(r =>
+    r.p <= S.max &&
+    r.c >= S.g &&
+    S.am.every(a => r.a.includes(a)) &&
+    (!S.saved || S.wl.includes(r.id))
+  );
+  const k = {
+    pa:  (a, b) => a.p - b.p,
+    pd:  (a, b) => b.p - a.p,
+    rt:  (a, b) => b.r - a.r,
+    rec: (a, b) => score(b) - score(a),
+  }[S.sort];
+  return l.sort(k);
+}
+
+function card(r, mini) {
+  const n = nts(S.in, S.out),
+        av = n > 0 && free(r.id, S.in, S.out);
+  return `<article class="card">
+    <img src="${IMG[r.i]}" alt="${r.n}" data-a="img" data-id="${r.id}">
+    <div>
+      <div class="row">
+        <h3 style="font-size:20px">${r.n}</h3>
+        <span class="mut">★ ${r.r}</span>
+      </div>
+      <div>
+        <span class="price">${fmt(r.p)}</span>
+        <span class="mut">/ night · up to ${r.c} guests</span>
+      </div>
+      ${mini ? '' : `<div class="mut">${r.a.map(a => AM[a]).join(' · ')}</div>`}
+      ${n > 0 ? `<b class="${av ? 'ok' : 'no'}">${av ? 'Available for your dates' : 'Booked for your dates'}</b>` : ''}
+      <div class="row">
+        <button class="btn" data-a="book" data-id="${r.id}">Book</button>
+        ${mini ? '' : `
+          <button class="btn g" data-a="wl" data-id="${r.id}" aria-pressed="${S.wl.includes(r.id)}">${S.wl.includes(r.id) ? '♥ Saved' : '♡ Save'}</button>
+          <button class="btn g" data-a="cp" data-id="${r.id}" aria-pressed="${S.cmp.includes(r.id)}">${S.cmp.includes(r.id) ? '✓ Comparing' : '⚖ Compare'}</button>
+        `}
+      </div>
+    </div>
+  </article>`;
+}
+
+function render() {
+  const l = list();
+  $('#grid').innerHTML = l.length
+    ? l.map(r => card(r)).join('')
+    : '<p class="mut">No rooms match these filters. Try a higher budget or fewer amenities.</p>';
+
+  $('#picks').innerHTML = R.slice()
+    .sort((a, b) => score(b) - score(a))
+    .slice(0, 3)
+    .map(r => card(r, 1))
+    .join('');
+
+  const rv = S.rv.map(room).filter(Boolean);
+  $('#rvw').hidden = !rv.length;
+  $('#rv').innerHTML = rv.map(r => card(r, 1)).join('');
+
+  $('#wc').textContent = S.wl.length;
+  $('#mxv').textContent = fmt(S.max);
+  $('#mx').value = S.max;
+  $('#so').value = S.sort;
+  $('#sv').setAttribute('aria-pressed', S.saved);
+
+  $$('#am .chip').forEach(c => c.setAttribute('aria-pressed', S.am.includes(c.dataset.k)));
+  $('#ci').value = S.in;
+  $('#co').value = S.out;
+  $('#gs').value = S.g;
+
+  compare();
+  admin();
+}
+
+function compare() {
+  const c = S.cmp.map(room);
+  $('#cmp').innerHTML = c.length < 2
+    ? '<p class="mut">Select at least two rooms to compare.</p>'
+    : `<table>
+        <tr><th></th>${c.map(r => `<th>${r.n}</th>`).join('')}</tr>
+        <tr><td>Price / night</td>${c.map(r => `<td>${fmt(r.p)}</td>`).join('')}</tr>
+        <tr><td>Capacity</td>${c.map(r => `<td>${r.c} guests</td>`).join('')}</tr>
+        <tr><td>Rating</td>${c.map(r => `<td>★ ${r.r}</td>`).join('')}</tr>
+        ${Object.keys(AM).map(k => `
+          <tr>
+            <td>${AM[k]}</td>
+            ${c.map(r => `<td class="${r.a.includes(k) ? 'ok' : 'no'}">${r.a.includes(k) ? 'Yes' : 'No'}</td>`).join('')}
+          </tr>
+        `).join('')}
+        <tr><td></td>${c.map(r => `<td><button class="btn" data-a="book" data-id="${r.id}">Book</button></td>`).join('')}</tr>
+      </table>`;
+}
+
+function admin() {
+  const a = all(),
+        ok = a.filter(x => x.st != 'cancelled'),
+        rev = ok.reduce((s, x) => s + x.total, 0);
+  let occ = 0;
+  for (let d = -30; d < 0; d++) {
+    const s = add(today, d);
+    R.forEach(r => {
+      if (!free(r.id, s, add(s, 1))) occ++;
+    });
+  }
+
+  $('#st').innerHTML = `
+    <div><b>${ok.length}</b>Reservations</div>
+    <div><b>${fmt(rev)}</b>Revenue</div>
+    <div><b>${Math.round(occ / 1.8)}%</b>Occupancy, last 30 days</div>
+    <div><b>${Math.round(100 * (a.length - ok.length) / a.length)}%</b>Cancellation rate</div>
+  `;
+
+  const m = {};
+  ok.forEach(x => {
+    const k = x.in.slice(0, 7);
+    m[k] = (m[k] || 0) + x.total;
+  });
+  const ks = Object.keys(m).sort().slice(-6),
+        mx = Math.max(...ks.map(k => m[k]), 1);
+  $('#c1').innerHTML = ks.map(k =>
+    `<div class="br"><span>${k}</span><i style="width:${100 * m[k] / mx}%"></i><span>${fmt(m[k])}</span></div>`
+  ).join('');
+
+  const rc = R.map(r => [r.n, ok.filter(x => x.room == r.id).length]),
+        rm = Math.max(...rc.map(x => x[1]), 1);
+  $('#c2').innerHTML = rc.map(x =>
+    `<div class="br"><span>${x[0].split(' ')[0]}</span><i style="width:${100 * x[1] / rm}%"></i><span>${x[1]}</span></div>`
+  ).join('');
+
+  $('#bt').innerHTML =
+    '<tr><th>Guest</th><th>Room</th><th>Stay</th><th>Total</th><th>Status</th></tr>' +
+    a.slice()
+      .sort((x, y) => y.in < x.in ? -1 : 1)
+      .slice(0, 8)
+      .map(x => `
+        <tr>
+          <td>${esc(x.n)}</td>
+          <td>${room(x.room).n}</td>
+          <td>${x.in} → ${x.out}</td>
+          <td>${fmt(x.total)}</td>
+          <td>${x.st == 'cancelled' ? 'Cancelled' : `Confirmed <button class="btn g" data-a="cx" data-id="${x.id}">Cancel</button>`}</td>
+        </tr>
+      `).join('');
+}
+
 /* checkout */
-let B={};const dl=$('#dl');
-function openBook(id){const r=room(id);S.rv=[id,...S.rv.filter(x=>x!=id)].slice(0,4);sv('hr',S.rv);B={r,in:S.in,out:S.out,g:Math.min(S.g,r.c),x:{},m:0,step:1,f:{name:'',email:'',phone:''},err:''};if(!nts(B.in,B.out)||!free(r.id,B.in,B.out)){B.in=B.out=''}if(B.in){const q=pd(B.in),n=new Date();B.m=(q.getFullYear()-n.getFullYear())*12+q.getMonth()-n.getMonth()}render();bk();dl.showModal()}
-function sumH(){const n=nts(B.in,B.out);if(!n)return'<aside class="sum"><b>Your stay</b><p class="mut">Pick dates to see the total.</p></aside>';const q=quote(B.r,n,B.g,B.x);
-return`<aside class="sum"><b>${B.r.n}</b><p><span>${fmt(B.r.p)} × ${n} night${n>1?'s':''}</span><span>${fmt(q.base)}</span></p>${q.bf?`<p><span>Breakfast</span><span>${fmt(q.bf)}</span></p>`:''}${q.ex?`<p><span>Extras</span><span>${fmt(q.ex)}</span></p>`:''}<p><span>Tax (${q.rate*100}%)</span><span>${fmt(q.tax)}</span></p><p class="t"><span>Total</span><span>${fmt(q.total)}</span></p></aside>`}
-function calH(){const d=new Date();d.setDate(1);d.setMonth(d.getMonth()+B.m);const y=d.getFullYear(),mo=d.getMonth(),dn=new Date(y,mo+1,0).getDate();let h=`<div class="row"><button class="btn g" data-a="pm" ${B.m<1?'disabled':''}>‹</button><b>${d.toLocaleString('en-IN',{month:'long',year:'numeric'})}</b><button class="btn g" data-a="nm">›</button></div><div class="cal" style="margin-top:8px">${'SMTWTFS'.split('').map(x=>`<span class="mut">${x}</span>`).join('')}${'<span></span>'.repeat(d.getDay())}`;
-for(let i=1;i<=dn;i++){const s=iso(new Date(y,mo,i)),bad=s<today||!free(B.r.id,s,add(s,1)),cl=s==B.in||s==B.out?'s':B.in&&B.out&&s>B.in&&s<B.out?'r':'';h+=`<button class="${cl}" data-a="day" data-d="${s}" ${bad&&s!=B.out?'disabled':''}>${i}</button>`}return h+'</div><p class="mut">Struck-through dates are unavailable. Click check‑in, then check‑out.</p>'}
-function bk(){const s=B.step,t=['Dates','Guests','Review','Done'];let h=`<div class="dh"><b>${B.r.n}</b><div class="steps">${t.map((x,i)=>`<span class="${i+1==s?'on':''}">${i+1}. ${x}</span>`).join('')}</div><button class="btn g" data-a="x">✕</button></div><div class="db"><div>`;
-if(s==1)h+=calH()+`<div class="f"><label>Guests<select id="bg">${[...Array(B.r.c)].map((_,i)=>`<option ${B.g==i+1?'selected':''}>${i+1}</option>`).join('')}</select></label>${Object.keys(EX).map(k=>`<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" style="width:auto" data-x="${k}" ${B.x[k]?'checked':''}>${EX[k][0]}</label>`).join('')}</div>`;
-if(s==2)h+=`<h3>Guest details</h3><div class="f"><label>Full name<input id="fn" value="${esc(B.f.name)}" autocomplete="name"></label><label>Email<input id="fe" type="email" value="${esc(B.f.email)}" autocomplete="email"></label><label>Phone (10 digits)<input id="fp" value="${esc(B.f.phone)}" inputmode="tel"></label></div>`;
-if(s==3)h+=`<h3>Review your booking</h3><p>${esc(B.f.name)} · ${esc(B.f.email)} · ${esc(B.f.phone)}</p><p>${B.in} → ${B.out} · ${B.g} guest${B.g>1?'s':''}</p><p class="mut">Demo checkout: pressing confirm saves the reservation in this browser only. No payment is taken.</p>`;
-if(s==4)h+=`<h3>Reservation saved</h3>${pass()}<p>Reference <b>${B.ref}</b>. Stay ${B.in} → ${B.out} for ${esc(B.f.name)}. It now appears in the admin dashboard below.</p><button class="btn" data-a="x">Close</button>`;
-h+=`<div class="err" id="er">${B.err}</div>`;if(s<4)h+=`<div class="row">${s>1?'<button class="btn g" data-a="back">Back</button>':'<span></span>'}<button class="btn ac" data-a="next">${s==3?'Confirm booking':'Continue'}</button></div>`;dl.innerHTML=h+'</div>'+sumH()+'</div>'}
-function next(){const n=nts(B.in,B.out);B.err='';
-if(B.step==1&&(!n||!free(B.r.id,B.in,B.out)))B.err='Choose valid, available check‑in and check‑out dates.';
-if(B.step==2){B.f={name:$('#fn').value.trim(),email:$('#fe').value.trim(),phone:$('#fp').value.trim()};if(B.f.name.length<2)B.err='Enter your full name.';else if(!/^\S+@\S+\.\S+$/.test(B.f.email))B.err='Enter a valid email.';else if(!/^\d{10}$/.test(B.f.phone))B.err='Phone must be 10 digits.'}
-if(!B.err&&B.step==3){if(!free(B.r.id,B.in,B.out))B.err='Sorry, those dates were just taken.';else{B.ref='HB'+Math.random().toString(36).slice(2,8).toUpperCase();S.bk.push({id:B.ref,room:B.r.id,in:B.in,out:B.out,g:B.g,st:'confirmed',n:B.f.name,e:B.f.email,total:quote(B.r,n,B.g,B.x).total});sv('hb',S.bk);toast('Demo reservation saved');render();setTimeout(confetti,60)}}
-if(!B.err)B.step++;bk()}
+let B = {};
+const dl = $('#dl');
+
+function openBook(id) {
+  const r = room(id);
+  S.rv = [id, ...S.rv.filter(x => x != id)].slice(0, 4);
+  sv('hr', S.rv);
+
+  B = {
+    r,
+    in: S.in,
+    out: S.out,
+    g: Math.min(S.g, r.c),
+    x: {},
+    m: 0,
+    step: 1,
+    f: { name: '', email: '', phone: '' },
+    err: '',
+  };
+
+  if (!nts(B.in, B.out) || !free(r.id, B.in, B.out)) {
+    B.in = B.out = '';
+  }
+
+  if (B.in) {
+    const q = pd(B.in),
+          n = new Date();
+    B.m = (q.getFullYear() - n.getFullYear()) * 12 + q.getMonth() - n.getMonth();
+  }
+
+  render();
+  bk();
+  dl.showModal();
+}
+
+function sumH() {
+  const n = nts(B.in, B.out);
+  if (!n) {
+    return '<aside class="sum"><b>Your stay</b><p class="mut">Pick dates to see the total.</p></aside>';
+  }
+  const q = quote(B.r, n, B.g, B.x);
+  return `<aside class="sum">
+    <b>${B.r.n}</b>
+    <p><span>${fmt(B.r.p)} × ${n} night${n > 1 ? 's' : ''}</span><span>${fmt(q.base)}</span></p>
+    ${q.bf ? `<p><span>Breakfast</span><span>${fmt(q.bf)}</span></p>` : ''}
+    ${q.ex ? `<p><span>Extras</span><span>${fmt(q.ex)}</span></p>` : ''}
+    <p><span>Tax (${q.rate * 100}%)</span><span>${fmt(q.tax)}</span></p>
+    <p class="t"><span>Total</span><span>${fmt(q.total)}</span></p>
+  </aside>`;
+}
+
+function calH() {
+  const d = new Date();
+  d.setDate(1);
+  d.setMonth(d.getMonth() + B.m);
+
+  const y = d.getFullYear(),
+        mo = d.getMonth(),
+        dn = new Date(y, mo + 1, 0).getDate();
+
+  let h = `<div class="row">
+    <button class="btn g" data-a="pm" ${B.m < 1 ? 'disabled' : ''}>‹</button>
+    <b>${d.toLocaleString('en-IN', { month: 'long', year: 'numeric' })}</b>
+    <button class="btn g" data-a="nm">›</button>
+  </div>
+  <div class="cal" style="margin-top:8px">
+    ${'SMTWTFS'.split('').map(x => `<span class="mut">${x}</span>`).join('')}
+    ${'<span></span>'.repeat(d.getDay())}`;
+
+  for (let i = 1; i <= dn; i++) {
+    const s = iso(new Date(y, mo, i)),
+          bad = s < today || !free(B.r.id, s, add(s, 1)),
+          cl = s == B.in || s == B.out
+            ? 's'
+            : (B.in && B.out && s > B.in && s < B.out ? 'r' : '');
+    h += `<button class="${cl}" data-a="day" data-d="${s}" ${bad && s != B.out ? 'disabled' : ''}>${i}</button>`;
+  }
+
+  return h + '</div><p class="mut">Struck-through dates are unavailable. Click check‑in, then check‑out.</p>';
+}
+
+function bk() {
+  const s = B.step,
+        t = ['Dates', 'Guests', 'Review', 'Done'];
+
+  let h = `<div class="dh">
+    <b>${B.r.n}</b>
+    <div class="steps">${t.map((x, i) => `<span class="${i + 1 == s ? 'on' : ''}">${i + 1}. ${x}</span>`).join('')}</div>
+    <button class="btn g" data-a="x">✕</button>
+  </div>
+  <div class="db"><div>`;
+
+  if (s == 1) {
+    h += calH() + `<div class="f">
+      <label>Guests
+        <select id="bg">${[...Array(B.r.c)].map((_, i) => `<option ${B.g == i + 1 ? 'selected' : ''}>${i + 1}</option>`).join('')}</select>
+      </label>
+      ${Object.keys(EX).map(k => `
+        <label style="display:flex;gap:8px;align-items:center">
+          <input type="checkbox" style="width:auto" data-x="${k}" ${B.x[k] ? 'checked' : ''}>${EX[k][0]}
+        </label>
+      `).join('')}
+    </div>`;
+  }
+
+  if (s == 2) {
+    h += `<h3>Guest details</h3>
+    <div class="f">
+      <label>Full name<input id="fn" value="${esc(B.f.name)}" autocomplete="name"></label>
+      <label>Email<input id="fe" type="email" value="${esc(B.f.email)}" autocomplete="email"></label>
+      <label>Phone (10 digits)<input id="fp" value="${esc(B.f.phone)}" inputmode="tel"></label>
+    </div>`;
+  }
+
+  if (s == 3) {
+    h += `<h3>Review your booking</h3>
+    <p>${esc(B.f.name)} · ${esc(B.f.email)} · ${esc(B.f.phone)}</p>
+    <p>${B.in} → ${B.out} · ${B.g} guest${B.g > 1 ? 's' : ''}</p>
+    <p class="mut">Demo checkout: pressing confirm saves the reservation in this browser only. No payment is taken.</p>`;
+  }
+
+  if (s == 4) {
+    h += `<h3>Reservation saved</h3>
+    ${pass()}
+    <p>Reference <b>${B.ref}</b>. Stay ${B.in} → ${B.out} for ${esc(B.f.name)}. It now appears in the admin dashboard below.</p>
+    <button class="btn" data-a="x">Close</button>`;
+  }
+
+  h += `<div class="err" id="er">${B.err}</div>`;
+
+  if (s < 4) {
+    h += `<div class="row">
+      ${s > 1 ? '<button class="btn g" data-a="back">Back</button>' : '<span></span>'}
+      <button class="btn ac" data-a="next">${s == 3 ? 'Confirm booking' : 'Continue'}</button>
+    </div>`;
+  }
+
+  dl.innerHTML = h + '</div>' + sumH() + '</div>';
+}
+
+function next() {
+  const n = nts(B.in, B.out);
+  B.err = '';
+
+  if (B.step == 1 && (!n || !free(B.r.id, B.in, B.out))) {
+    B.err = 'Choose valid, available check‑in and check‑out dates.';
+  }
+
+  if (B.step == 2) {
+    B.f = {
+      name: $('#fn').value.trim(),
+      email: $('#fe').value.trim(),
+      phone: $('#fp').value.trim(),
+    };
+    if (B.f.name.length < 2) B.err = 'Enter your full name.';
+    else if (!/^\S+@\S+\.\S+$/.test(B.f.email)) B.err = 'Enter a valid email.';
+    else if (!/^\d{10}$/.test(B.f.phone)) B.err = 'Phone must be 10 digits.';
+  }
+
+  if (!B.err && B.step == 3) {
+    if (!free(B.r.id, B.in, B.out)) {
+      B.err = 'Sorry, those dates were just taken.';
+    } else {
+      B.ref = 'HB' + Math.random().toString(36).slice(2, 8).toUpperCase();
+      S.bk.push({
+        id: B.ref,
+        room: B.r.id,
+        in: B.in,
+        out: B.out,
+        g: B.g,
+        st: 'confirmed',
+        n: B.f.name,
+        e: B.f.email,
+        total: quote(B.r, n, B.g, B.x).total,
+      });
+      sv('hb', S.bk);
+      toast('Demo reservation saved');
+      render();
+      setTimeout(confetti, 60);
+    }
+  }
+
+  if (!B.err) B.step++;
+  bk();
+}
+
 /* assistant & NL */
-function parse(q){q=q.toLowerCase();const m=q.match(/(?:under|below|less than|max|within|upto|up to|₹|rs\.?)\s*₹?\s*([\d,]+)/),w={one:1,two:2,three:3,four:4,five:5};let g=(q.match(/(\d+)\s*(?:people|persons|guests|adults|pax)/)||[])[1];if(!g)for(const k in w)if(new RegExp('\\b'+k+'\\s+(people|persons|guests|adults)').test(q))g=w[k];if(!g&&/family/.test(q))g=4;
-return{max:m?+m[1].replace(/,/g,''):0,g:+g||0,am:Object.keys(AM).filter(k=>q.includes(k)||(k=='wifi'&&q.includes('wi-fi')))}}
-function applyQ(q){const p=parse(q);if(p.max)S.max=Math.min(12000,Math.max(2000,p.max));if(p.g)S.g=Math.min(5,p.g);S.am=p.am;S.sort='rec';render();return p}
-function say(t,u,l){const p=document.createElement('p');if(u)p.className='u';p.textContent=t;(l||[]).forEach(r=>{const b=document.createElement('button');b.className='btn g';b.style.cssText='display:block;margin-top:6px';b.textContent=r.n+' – book';b.dataset.a='book';b.dataset.id=r.id;p.append(b)});$('#lg').append(p);$('#lg').scrollTop=1e9}
+function parse(q) {
+  q = q.toLowerCase();
+
+  const m = q.match(/(?:under|below|less than|max|within|upto|up to|₹|rs\.?)\s*₹?\s*([\d,]+)/),
+        w = { one: 1, two: 2, three: 3, four: 4, five: 5 };
+
+  let g = (q.match(/(\d+)\s*(?:people|persons|guests|adults|pax)/) || [])[1];
+  if (!g) {
+    for (const k in w) {
+      if (new RegExp('\\b' + k + '\\s+(people|persons|guests|adults)').test(q)) g = w[k];
+    }
+  }
+  if (!g && /family/.test(q)) g = 4;
+
+  return {
+    max: m ? +m[1].replace(/,/g, '') : 0,
+    g: +g || 0,
+    am: Object.keys(AM).filter(k => q.includes(k) || (k == 'wifi' && q.includes('wi-fi'))),
+  };
+}
+
+function applyQ(q) {
+  const p = parse(q);
+  if (p.max) S.max = Math.min(12000, Math.max(2000, p.max));
+  if (p.g) S.g = Math.min(5, p.g);
+  S.am = p.am;
+  S.sort = 'rec';
+  render();
+  return p;
+}
+
+function say(t, u, l) {
+  const p = document.createElement('p');
+  if (u) p.className = 'u';
+  p.textContent = t;
+  (l || []).forEach(r => {
+    const b = document.createElement('button');
+    b.className = 'btn g';
+    b.style.cssText = 'display:block;margin-top:6px';
+    b.textContent = r.n + ' – book';
+    b.dataset.a = 'book';
+    b.dataset.id = r.id;
+    p.append(b);
+  });
+  $('#lg').append(p);
+  $('#lg').scrollTop = 1e9;
+}
+
 /* events */
-$('#am').innerHTML=Object.keys(AM).map(k=>`<button class="chip" data-k="${k}" aria-pressed="false">${AM[k]}</button>`).join('');$('#gs').innerHTML=[1,2,3,4,5].map(i=>`<option>${i}</option>`).join('');$('#ci').min=$('#co').min=today;
-$('#gl').innerHTML=['hero','lobby','spa','dine','lounge','suite'].map((k,i)=>`<img src="${IMG[k]}" alt="Hotelier gallery ${i+1}" data-a="gl" data-i="${i}">`).join('');
-let LB=[],li=0;const lb=$('#lb');function showLB(){$('#li').src=LB[li];$('#lc').textContent=(li+1)+' / '+LB.length}
-function openLB(l,i){LB=l;li=i;showLB();lb.showModal()}
-document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t)return;const a=t.dataset.a,id=+t.dataset.id;
-if(a=='book'){if($('#ap').classList.contains('on')||true)openBook(id)}
-if(a=='wl'){S.wl=S.wl.includes(id)?S.wl.filter(x=>x!=id):[...S.wl,id];sv('hw',S.wl);toast(S.wl.includes(id)?'Added to saved rooms':'Removed from saved rooms');render()}
-if(a=='img'){S.rv=[id,...S.rv.filter(x=>x!=id)].slice(0,4);sv('hr',S.rv);openLB([IMG[room(id).i]],0);render()}
-if(a=='gl')openLB(['hero','lobby','spa','dine','lounge','suite'].map(k=>IMG[k]),+t.dataset.i);
-if(a=='cx'){const b=all().find(x=>x.id==t.dataset.id);b.st='cancelled';sv('hb',S.bk);toast('Booking cancelled');render()}
-if(!dl.open)return;if(a=='x')dl.close();if(a=='pm'){B.m--;bk()}if(a=='nm'){B.m++;bk()}if(a=='back'){B.step--;B.err='';bk()}if(a=='next')next();
-if(a=='day'){const d=t.dataset.d;if(!B.in||B.out||d<=B.in){B.in=d;B.out=''}else if(free(B.r.id,B.in,d))B.out=d;else{toast('Those dates include a booked night');B.in=d;B.out=''}bk()}});
-document.addEventListener('change',e=>{const t=e.target;if(t.dataset.a=='cmp'){const id=+t.dataset.id;if(t.checked&&S.cmp.length>=3){t.checked=false;return toast('You can compare up to three rooms')}S.cmp=t.checked?[...S.cmp,id]:S.cmp.filter(x=>x!=id);compare()}
-if(t.id=='bg'){B.g=+t.value;bk()}if(t.dataset.x){B.x[t.dataset.x]=t.checked;bk()}});
-$('#am').onclick=e=>{const k=e.target.dataset.k;if(k){S.am=S.am.includes(k)?S.am.filter(x=>x!=k):[...S.am,k];render()}};
-$('#mx').oninput=e=>{S.max=+e.target.value;render()};$('#so').onchange=e=>{S.sort=e.target.value;render()};$('#sv').onclick=()=>{S.saved=!S.saved;render()};
-$('#gs').onchange=e=>{S.g=+e.target.value;render()};
-function dates(){let a=$('#ci').value,b=$('#co').value;if(a&&b&&b<=a){toast('Check‑out must be after check‑in');b=add(a,1)}S.in=a;S.out=b;render()}$('#ci').onchange=$('#co').onchange=dates;
-$('#go').onclick=()=>{const q=$('#nl').value.trim();if(q){applyQ(q);toast('Filters set from your request')}else dates();$('#rooms').scrollIntoView({behavior:'smooth'})};
-$('#nl').onkeydown=e=>{if(e.key=='Enter')$('#go').click()};
-$('#th').onclick=()=>{const d=document.documentElement,dark=d.dataset.theme?d.dataset.theme=='dark':matchMedia('(prefers-color-scheme:dark)').matches;d.dataset.theme=dark?'light':'dark'};
-$('#ab').onclick=()=>$('#ap').classList.toggle('on');
-$('#af').onsubmit=e=>{e.preventDefault();const q=$('#aq').value.trim();if(!q)return;$('#aq').value='';say(q,1);const p=applyQ(q),l=list().slice(0,3);
-say(l.length?`I found ${l.length} match${l.length>1?'es':''}${p.max?` under ${fmt(p.max)}`:''}${p.g?` for ${p.g} guests`:''}${p.am.length?` with ${p.am.map(a=>AM[a]).join(', ')}`:''}. The room list is filtered too.`:'Nothing matches all of that. Try a higher budget or fewer amenities.',0,l.map(r=>({n:`${r.n} (${fmt(r.p)})`,id:r.id})))};
-lb.onclick=e=>{const i=e.target.id;if(i=='lx'||e.target==lb)lb.close();if(i=='lp'){li=(li+LB.length-1)%LB.length;showLB()}if(i=='ln'){li=(li+1)%LB.length;showLB()}};
+$('#am').innerHTML = Object.keys(AM).map(k =>
+  `<button class="chip" data-k="${k}" aria-pressed="false">${AM[k]}</button>`
+).join('');
+$('#gs').innerHTML = [1, 2, 3, 4, 5].map(i => `<option>${i}</option>`).join('');
+$('#ci').min = $('#co').min = today;
+
+$('#gl').innerHTML = ['hero', 'lobby', 'spa', 'dine', 'lounge', 'suite'].map((k, i) =>
+  `<img src="${IMG[k]}" alt="Hotelier gallery ${i + 1}" data-a="gl" data-i="${i}">`
+).join('');
+
+let LB = [], li = 0;
+const lb = $('#lb');
+
+function showLB() {
+  $('#li').src = LB[li];
+  $('#lc').textContent = (li + 1) + ' / ' + LB.length;
+}
+
+function openLB(l, i) {
+  LB = l;
+  li = i;
+  showLB();
+  lb.showModal();
+}
+
+document.addEventListener('click', e => {
+  const t = e.target.closest('[data-a]');
+  if (!t) return;
+
+  const a = t.dataset.a,
+        id = +t.dataset.id;
+
+  if (a == 'book') {
+    if ($('#ap').classList.contains('on') || true) openBook(id);
+  }
+
+  if (a == 'wl') {
+    S.wl = S.wl.includes(id) ? S.wl.filter(x => x != id) : [...S.wl, id];
+    sv('hw', S.wl);
+    toast(S.wl.includes(id) ? 'Added to saved rooms' : 'Removed from saved rooms');
+    render();
+  }
+
+  if (a == 'img') {
+    S.rv = [id, ...S.rv.filter(x => x != id)].slice(0, 4);
+    sv('hr', S.rv);
+    openLB([IMG[room(id).i]], 0);
+    render();
+  }
+
+  if (a == 'gl') {
+    openLB(['hero', 'lobby', 'spa', 'dine', 'lounge', 'suite'].map(k => IMG[k]), +t.dataset.i);
+  }
+
+  if (a == 'cx') {
+    const b = all().find(x => x.id == t.dataset.id);
+    b.st = 'cancelled';
+    sv('hb', S.bk);
+    toast('Booking cancelled');
+    render();
+  }
+
+  if (!dl.open) return;
+
+  if (a == 'x') dl.close();
+  if (a == 'pm') { B.m--; bk(); }
+  if (a == 'nm') { B.m++; bk(); }
+  if (a == 'back') { B.step--; B.err = ''; bk(); }
+  if (a == 'next') next();
+
+  if (a == 'day') {
+    const d = t.dataset.d;
+    if (!B.in || B.out || d <= B.in) {
+      B.in = d;
+      B.out = '';
+    } else if (free(B.r.id, B.in, d)) {
+      B.out = d;
+    } else {
+      toast('Those dates include a booked night');
+      B.in = d;
+      B.out = '';
+    }
+    bk();
+  }
+});
+
+document.addEventListener('change', e => {
+  const t = e.target;
+
+  if (t.dataset.a == 'cmp') {
+    const id = +t.dataset.id;
+    if (t.checked && S.cmp.length >= 3) {
+      t.checked = false;
+      return toast('You can compare up to three rooms');
+    }
+    S.cmp = t.checked ? [...S.cmp, id] : S.cmp.filter(x => x != id);
+    compare();
+  }
+
+  if (t.id == 'bg') { B.g = +t.value; bk(); }
+  if (t.dataset.x) { B.x[t.dataset.x] = t.checked; bk(); }
+});
+
+$('#am').onclick = e => {
+  const k = e.target.dataset.k;
+  if (k) {
+    S.am = S.am.includes(k) ? S.am.filter(x => x != k) : [...S.am, k];
+    render();
+  }
+};
+
+$('#mx').oninput = e => { S.max = +e.target.value; render(); };
+$('#so').onchange = e => { S.sort = e.target.value; render(); };
+$('#sv').onclick = () => { S.saved = !S.saved; render(); };
+$('#gs').onchange = e => { S.g = +e.target.value; render(); };
+
+function dates() {
+  let a = $('#ci').value,
+      b = $('#co').value;
+  if (a && b && b <= a) {
+    toast('Check‑out must be after check‑in');
+    b = add(a, 1);
+  }
+  S.in = a;
+  S.out = b;
+  render();
+}
+$('#ci').onchange = $('#co').onchange = dates;
+
+$('#go').onclick = () => {
+  const q = $('#nl').value.trim();
+  if (q) {
+    applyQ(q);
+    toast('Filters set from your request');
+  } else {
+    dates();
+  }
+  $('#rooms').scrollIntoView({ behavior: 'smooth' });
+};
+
+$('#nl').onkeydown = e => { if (e.key == 'Enter') $('#go').click(); };
+
+$('#th').onclick = () => {
+  const d = document.documentElement,
+        dark = d.dataset.theme
+          ? d.dataset.theme == 'dark'
+          : matchMedia('(prefers-color-scheme:dark)').matches;
+  d.dataset.theme = dark ? 'light' : 'dark';
+};
+
+$('#ab').onclick = () => $('#ap').classList.toggle('on');
+
+$('#af').onsubmit = e => {
+  e.preventDefault();
+  const q = $('#aq').value.trim();
+  if (!q) return;
+  $('#aq').value = '';
+  say(q, 1);
+
+  const p = applyQ(q),
+        l = list().slice(0, 3);
+
+  say(
+    l.length
+      ? `I found ${l.length} match${l.length > 1 ? 'es' : ''}` +
+        `${p.max ? ` under ${fmt(p.max)}` : ''}` +
+        `${p.g ? ` for ${p.g} guests` : ''}` +
+        `${p.am.length ? ` with ${p.am.map(a => AM[a]).join(', ')}` : ''}. The room list is filtered too.`
+      : 'Nothing matches all of that. Try a higher budget or fewer amenities.',
+    0,
+    l.map(r => ({ n: `${r.n} (${fmt(r.p)})`, id: r.id }))
+  );
+};
+
+lb.onclick = e => {
+  const i = e.target.id;
+  if (i == 'lx' || e.target == lb) lb.close();
+  if (i == 'lp') { li = (li + LB.length - 1) % LB.length; showLB(); }
+  if (i == 'ln') { li = (li + 1) % LB.length; showLB(); }
+};
+
 /* v2: compare, 3D tower, voice, confetti */
-function ctab(c){const mn=Math.min(...c.map(r=>r.p)),mr=Math.max(...c.map(r=>r.r)),mc=Math.max(...c.map(r=>r.c)),val=r=>r.r*1000/r.p,mv=Math.max(...c.map(val)),b=(x,y)=>x==y?' class="best"':'',n=nts(S.in,S.out);
-return`<table><tr><th></th>${c.map(r=>`<th>${r.n}<br><img src="${IMG[r.i]}" alt="" style="width:130px;height:80px;object-fit:cover;border-radius:6px;margin:6px 0"><br><button class="btn g" data-a="cp" data-id="${r.id}">Remove</button></th>`).join('')}</tr>
-<tr><td>Price / night</td>${c.map(r=>`<td${b(r.p,mn)}>${fmt(r.p)}${r.p==mn?' · lowest':''}</td>`).join('')}</tr><tr><td>Capacity</td>${c.map(r=>`<td${b(r.c,mc)}>${r.c} guests</td>`).join('')}</tr><tr><td>Rating</td>${c.map(r=>`<td${b(r.r,mr)}>★ ${r.r}</td>`).join('')}</tr>
-<tr><td>Value (rating per ₹1,000)</td>${c.map(r=>`<td${b(val(r),mv)}>${val(r).toFixed(2)}${val(r)==mv?' · best value':''}</td>`).join('')}</tr>${n>0?`<tr><td>Your dates</td>${c.map(r=>`<td class="${free(r.id,S.in,S.out)?'ok':'no'}">${free(r.id,S.in,S.out)?'Available':'Booked'}</td>`).join('')}</tr>`:''}
-${Object.keys(AM).map(k=>`<tr><td>${AM[k]}</td>${c.map(r=>`<td class="${r.a.includes(k)?'ok':'no'}">${r.a.includes(k)?'Yes':'No'}</td>`).join('')}</tr>`).join('')}<tr><td></td>${c.map(r=>`<td><button class="btn" data-a="book" data-id="${r.id}">Book</button></td>`).join('')}</tr></table>`}
-function compare(){const c=S.cmp.map(room),h=c.length<2?'<p class="mut">Pick at least two rooms with the ⚖ Compare button on any room card or 3D floor.</p>':ctab(c);$('#cmp').innerHTML=h;$('#cdb').innerHTML=h;$('#cb').hidden=!c.length;$('#cbn').textContent=c.length}
-function pass(){const bars=[...B.ref+B.ref].map((c,i)=>`<rect x="${i*5}" width="${1+c.charCodeAt(0)%3}" height="34" fill="currentColor"/>`).join('');return`<div class="pass"><div><b>Digital key</b><h3>${B.r.n}</h3><span class="mut">${B.in} → ${B.out}</span></div><svg viewBox="0 0 60 34" aria-label="Key barcode">${bars}</svg></div>`}
-function confetti(){const c=document.createElement('canvas');c.style.cssText='position:fixed;inset:0;pointer-events:none;width:100%;height:100%';c.width=innerWidth;c.height=innerHeight;(dl.open?dl:document.body).append(c);const x=c.getContext('2d'),p=[...Array(150)].map(()=>({x:c.width/2,y:c.height/2,vx:(Math.random()-.5)*18,vy:-Math.random()*17-4,s:4+Math.random()*6,h:Math.random()*360}));let f=0;(function t(){x.clearRect(0,0,c.width,c.height);p.forEach(q=>{q.x+=q.vx;q.y+=q.vy;q.vy+=.35;x.fillStyle=`hsl(${q.h} 80% 60%)`;x.fillRect(q.x,q.y,q.s,q.s)});if(++f<120)requestAnimationFrame(t);else c.remove()})()}
-const TW=$('#tw'),FL=R.slice().sort((a,b)=>b.p-a.p);let ang=-30,drag=0,mv=0,sx=0,selT=0,V=0;
-TW.innerHTML=FL.map((r,i)=>`<div class="fl" data-id="${r.id}" style="--i:${i};--im:url(${IMG[r.i]})"><div class="tf a"><em>${r.n} · ${fmt(r.p)}</em></div><div class="tf b"></div><div class="tf c"></div><div class="tf d"></div></div>`).join('');
-function tinfo(){const r=room(selT);$('#ti').innerHTML=r?`<b>${r.n}</b> · ${fmt(r.p)} / night · up to ${r.c} guests · ★ ${r.r}<br><span class="mut">${r.a.map(a=>AM[a]).join(' · ')}</span><div class="row" style="margin-top:8px;justify-content:flex-start"><button class="btn" data-a="book" data-id="${r.id}">Book this floor</button><button class="btn g" data-a="cp" data-id="${r.id}">${S.cmp.includes(r.id)?'✓ Comparing':'⚖ Compare'}</button></div>`:'<span class="mut">Nothing selected yet. The top floor is our priciest suite.</span>';$$('.fl').forEach(f=>f.classList.toggle('sel',f.dataset.id==selT))}
-(function spin(){if(!drag&&!selT&&!matchMedia('(prefers-reduced-motion:reduce)').matches)ang+=.3;TW.style.transform=`rotateX(-16deg) rotateY(${ang}deg)`;requestAnimationFrame(spin)})();
-const stg=$('#stg');stg.onpointerdown=e=>{drag=1;sx=e.clientX;mv=0};addEventListener('pointermove',e=>{if(drag){const d=e.clientX-sx;sx=e.clientX;ang+=d*.6;mv+=Math.abs(d)}});addEventListener('pointerup',()=>drag=0);
-stg.onclick=e=>{if(mv>5)return;const f=e.target.closest('.fl');selT=f&&+f.dataset.id!=selT?+f.dataset.id:0;tinfo()};
-$('#exb').onclick=e=>{const x=TW.classList.toggle('ex');e.target.textContent=x?'🧩 Rebuild tower':'💥 Explode tower'};
-document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t)return;const a=t.dataset.a,id=+t.dataset.id;
-if(a=='cp'){if(S.cmp.includes(id))S.cmp=S.cmp.filter(x=>x!=id);else if(S.cmp.length>=3)return toast('You can compare up to three rooms');else{S.cmp.push(id);toast(room(id).n+' added to compare')}render();tinfo()}
-if(a=='cbo'){S.cmp.length<2?toast('Pick at least two rooms to compare'):$('#cd').showModal()}if(a=='cdx')$('#cd').close();if(a=='book'&&$('#cd').open)$('#cd').close()});
-const SR=window.SpeechRecognition||window.webkitSpeechRecognition,_say=say;say=(t,u,l)=>{_say(t,u,l);if(V&&!u&&window.speechSynthesis)speechSynthesis.speak(new SpeechSynthesisUtterance(t))};
-$('#mic').onclick=()=>{if(!SR)return toast('Voice input needs a browser like Chrome');const r=new SR();r.lang='en-IN';r.onresult=e=>{V=1;$('#aq').value=e.results[0][0].transcript;$('#af').requestSubmit()};r.onerror=()=>toast('Could not hear you, try again');r.start();toast('Listening…')};
-render();tinfo();
+function ctab(c) {
+  const mn = Math.min(...c.map(r => r.p)),
+        mr = Math.max(...c.map(r => r.r)),
+        mc = Math.max(...c.map(r => r.c)),
+        val = r => r.r * 1000 / r.p,
+        mv = Math.max(...c.map(val)),
+        b = (x, y) => (x == y ? ' class="best"' : ''),
+        n = nts(S.in, S.out);
+
+  return `<table>
+    <tr>
+      <th></th>
+      ${c.map(r => `
+        <th>${r.n}<br>
+          <img src="${IMG[r.i]}" alt="" style="width:130px;height:80px;object-fit:cover;border-radius:6px;margin:6px 0"><br>
+          <button class="btn g" data-a="cp" data-id="${r.id}">Remove</button>
+        </th>
+      `).join('')}
+    </tr>
+    <tr><td>Price / night</td>${c.map(r => `<td${b(r.p, mn)}>${fmt(r.p)}${r.p == mn ? ' · lowest' : ''}</td>`).join('')}</tr>
+    <tr><td>Capacity</td>${c.map(r => `<td${b(r.c, mc)}>${r.c} guests</td>`).join('')}</tr>
+    <tr><td>Rating</td>${c.map(r => `<td${b(r.r, mr)}>★ ${r.r}</td>`).join('')}</tr>
+    <tr><td>Value (rating per ₹1,000)</td>${c.map(r => `<td${b(val(r), mv)}>${val(r).toFixed(2)}${val(r) == mv ? ' · best value' : ''}</td>`).join('')}</tr>
+    ${n > 0 ? `<tr><td>Your dates</td>${c.map(r => `<td class="${free(r.id, S.in, S.out) ? 'ok' : 'no'}">${free(r.id, S.in, S.out) ? 'Available' : 'Booked'}</td>`).join('')}</tr>` : ''}
+    ${Object.keys(AM).map(k => `<tr><td>${AM[k]}</td>${c.map(r => `<td class="${r.a.includes(k) ? 'ok' : 'no'}">${r.a.includes(k) ? 'Yes' : 'No'}</td>`).join('')}</tr>`).join('')}
+    <tr><td></td>${c.map(r => `<td><button class="btn" data-a="book" data-id="${r.id}">Book</button></td>`).join('')}</tr>
+  </table>`;
+}
+
+function compare() {
+  const c = S.cmp.map(room),
+        h = c.length < 2
+          ? '<p class="mut">Pick at least two rooms with the ⚖ Compare button on any room card or 3D floor.</p>'
+          : ctab(c);
+  $('#cmp').innerHTML = h;
+  $('#cdb').innerHTML = h;
+  $('#cb').hidden = !c.length;
+  $('#cbn').textContent = c.length;
+}
+
+function pass() {
+  const bars = [...B.ref + B.ref].map((c, i) =>
+    `<rect x="${i * 5}" width="${1 + c.charCodeAt(0) % 3}" height="34" fill="currentColor"/>`
+  ).join('');
+  return `<div class="pass">
+    <div>
+      <b>Digital key</b>
+      <h3>${B.r.n}</h3>
+      <span class="mut">${B.in} → ${B.out}</span>
+    </div>
+    <svg viewBox="0 0 60 34" aria-label="Key barcode">${bars}</svg>
+  </div>`;
+}
+
+function confetti() {
+  const c = document.createElement('canvas');
+  c.style.cssText = 'position:fixed;inset:0;pointer-events:none;width:100%;height:100%';
+  c.width = innerWidth;
+  c.height = innerHeight;
+  (dl.open ? dl : document.body).append(c);
+
+  const x = c.getContext('2d'),
+        p = [...Array(150)].map(() => ({
+          x: c.width / 2,
+          y: c.height / 2,
+          vx: (Math.random() - 0.5) * 18,
+          vy: -Math.random() * 17 - 4,
+          s: 4 + Math.random() * 6,
+          h: Math.random() * 360,
+        }));
+
+  let f = 0;
+  (function t() {
+    x.clearRect(0, 0, c.width, c.height);
+    p.forEach(q => {
+      q.x += q.vx;
+      q.y += q.vy;
+      q.vy += 0.35;
+      x.fillStyle = `hsl(${q.h} 80% 60%)`;
+      x.fillRect(q.x, q.y, q.s, q.s);
+    });
+    if (++f < 120) requestAnimationFrame(t);
+    else c.remove();
+  })();
+}
+
+const TW = $('#tw'),
+      FL = R.slice().sort((a, b) => b.p - a.p);
+let ang = -30,
+    drag = 0,
+    mv = 0,
+    sx = 0,
+    selT = 0,
+    V = 0;
+
+TW.innerHTML = FL.map((r, i) =>
+  `<div class="fl" data-id="${r.id}" style="--i:${i};--im:url(${IMG[r.i]})">
+    <div class="tf a"><em>${r.n} · ${fmt(r.p)}</em></div>
+    <div class="tf b"></div>
+    <div class="tf c"></div>
+    <div class="tf d"></div>
+  </div>`
+).join('');
+
+function tinfo() {
+  const r = room(selT);
+  $('#ti').innerHTML = r
+    ? `<b>${r.n}</b> · ${fmt(r.p)} / night · up to ${r.c} guests · ★ ${r.r}<br>
+       <span class="mut">${r.a.map(a => AM[a]).join(' · ')}</span>
+       <div class="row" style="margin-top:8px;justify-content:flex-start">
+         <button class="btn" data-a="book" data-id="${r.id}">Book this floor</button>
+         <button class="btn g" data-a="cp" data-id="${r.id}">${S.cmp.includes(r.id) ? '✓ Comparing' : '⚖ Compare'}</button>
+       </div>`
+    : '<span class="mut">Nothing selected yet. The top floor is our priciest suite.</span>';
+  $$('.fl').forEach(f => f.classList.toggle('sel', f.dataset.id == selT));
+}
+
+(function spin() {
+  if (!drag && !selT && !matchMedia('(prefers-reduced-motion:reduce)').matches) ang += 0.3;
+  TW.style.transform = `rotateX(-16deg) rotateY(${ang}deg)`;
+  requestAnimationFrame(spin);
+})();
+
+const stg = $('#stg');
+stg.onpointerdown = e => { drag = 1; sx = e.clientX; mv = 0; };
+addEventListener('pointermove', e => {
+  if (drag) {
+    const d = e.clientX - sx;
+    sx = e.clientX;
+    ang += d * 0.6;
+    mv += Math.abs(d);
+  }
+});
+addEventListener('pointerup', () => drag = 0);
+
+stg.onclick = e => {
+  if (mv > 5) return;
+  const f = e.target.closest('.fl');
+  selT = f && +f.dataset.id != selT ? +f.dataset.id : 0;
+  tinfo();
+};
+
+$('#exb').onclick = e => {
+  const x = TW.classList.toggle('ex');
+  e.target.textContent = x ? '🧩 Rebuild tower' : '💥 Explode tower';
+};
+
+document.addEventListener('click', e => {
+  const t = e.target.closest('[data-a]');
+  if (!t) return;
+  const a = t.dataset.a,
+        id = +t.dataset.id;
+
+  if (a == 'cp') {
+    if (S.cmp.includes(id)) {
+      S.cmp = S.cmp.filter(x => x != id);
+    } else if (S.cmp.length >= 3) {
+      return toast('You can compare up to three rooms');
+    } else {
+      S.cmp.push(id);
+      toast(room(id).n + ' added to compare');
+    }
+    render();
+    tinfo();
+  }
+
+  if (a == 'cbo') {
+    S.cmp.length < 2 ? toast('Pick at least two rooms to compare') : $('#cd').showModal();
+  }
+  if (a == 'cdx') $('#cd').close();
+  if (a == 'book' && $('#cd').open) $('#cd').close();
+});
+
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition,
+      _say = say;
+say = (t, u, l) => {
+  _say(t, u, l);
+  if (V && !u && window.speechSynthesis) {
+    speechSynthesis.speak(new SpeechSynthesisUtterance(t));
+  }
+};
+
+$('#mic').onclick = () => {
+  if (!SR) return toast('Voice input needs a browser like Chrome');
+  const r = new SR();
+  r.lang = 'en-IN';
+  r.onresult = e => {
+    V = 1;
+    $('#aq').value = e.results[0][0].transcript;
+    $('#af').requestSubmit();
+  };
+  r.onerror = () => toast('Could not hear you, try again');
+  r.start();
+  toast('Listening…');
+};
+
+render();
+tinfo();
