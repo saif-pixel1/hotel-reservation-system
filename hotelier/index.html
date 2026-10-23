@@ -1,21 +1,165 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Hotelier – Luxury Hotel Reservations</title>
-<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,500;6..96,700&family=Figtree:wght@400;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css"></head><body>
-<header><b>Hotelier</b><a href="#rooms">Rooms</a><a href="#compare">Compare</a><a href="#gallery">Gallery</a><a href="#admin">Admin</a><button class="btn g" id="sv" aria-pressed="false">♡ Saved <span id="wc">0</span></button><button class="btn g" id="th" aria-label="Toggle theme">◐</button></header>
-<div class="hero"><div class="w"><h1>Quiet rooms, honest prices, your dates held.</h1>
-<div class="sb"><label>Check‑in<input type="date" id="ci"></label><label>Check‑out<input type="date" id="co"></label><label>Guests<select id="gs"></select></label><button class="btn ac" id="go">Check availability</button>
-<label style="grid-column:1/-1">Or just ask in plain words<input id="nl" placeholder="Family room with parking and breakfast, below ₹6,000"></label></div></div></div>
-<section id="rooms"><div class="w"><h2>Rooms &amp; suites</h2><p class="sub">Filters update instantly. Prices are per night before tax.</p>
-<div class="bar"><label>Max price: <b id="mxv"></b><input type="range" id="mx" min="2000" max="12000" step="500" value="12000"></label><label>Sort<select id="so"><option value="rec">Selected for you</option><option value="pa">Price: low to high</option><option value="pd">Price: high to low</option><option value="rt">Top rated</option></select></label><div class="chips" id="am"></div></div>
-<div class="grid" id="grid"></div>
-<h3 style="margin:34px 0 12px">Selected for you</h3><div class="mini" id="picks"></div>
-<div id="rvw" hidden><h3 style="margin:34px 0 12px">Recently viewed</h3><div class="mini" id="rv"></div></div></div></section>
-<section id="tower"><div class="w"><h2>Explore the tower in 3D</h2><p class="sub">Drag to spin the building. Tap a floor to inspect that room, or blow the whole tower apart.</p><div class="bar"><button class="btn ac" id="exb">💥 Explode tower</button></div><div class="stage" id="stg"><div id="tw"></div></div><div id="ti" style="margin-top:14px"></div></div></section>
-<section id="compare" style="background:var(--sf)"><div class="w"><h2>Compare rooms</h2><p class="sub">Tick “Compare” on up to three rooms.</p><div id="cmp"></div></div></section>
-<section id="gallery"><div class="w"><h2>Inside Hotelier</h2><p class="sub">Tap any photo for fullscreen.</p><div class="gal" id="gl"></div></div></section>
-<section id="admin" style="background:var(--sf)"><div class="w"><h2>Admin dashboard</h2><p class="sub">Computed live from sample records plus bookings made in this browser. A real deployment needs a login and a server.</p><div class="stats" id="st"></div><div class="ch"><div><h3>Revenue by month</h3><div id="c1"></div></div><div><h3>Bookings by room</h3><div id="c2"></div></div></div>
-<h3 style="margin:26px 0 8px">Latest bookings</h3><table id="bt"></table></div></section>
-<footer class="w mut" style="padding:30px 18px 90px">Hotelier demo. Runs entirely in your browser: no payment is taken and bookings live only in this device’s storage.</footer>
-<dialog id="dl"></dialog><dialog id="lb" style="width:min(1000px,96vw);background:#000"><div class="dh" style="color:#fff"><span id="lc"></span><span><button class="btn g" style="color:#fff" id="lp">‹</button> <button class="btn g" style="color:#fff" id="ln">›</button> <button class="btn g" style="color:#fff" id="lx">Close</button></span></div><img id="li" alt="" style="width:100%;max-height:78vh;object-fit:contain;display:block"></dialog>
-<div id="ai"><div id="ap" role="dialog" aria-label="Travel assistant"><div id="lg"><p>Hi! Tell me what you need, e.g. “two people, under ₹5,000, with breakfast and wifi”. (Rule‑based demo, reading only this site’s room data.)</p></div><form id="af" style="display:flex;gap:6px"><input id="aq" placeholder="Ask about rooms…" aria-label="Message"><button type="button" class="btn g" id="mic" aria-label="Speak">🎤</button><button class="btn">Send</button></form></div><button class="btn ac" id="ab">✦ Assistant</button></div><div id="cb" class="cbar" hidden><span>⚖ Comparing <b id="cbn">0</b>/3</span><button class="btn ac" data-a="cbo">Compare now</button></div><dialog id="cd"><div class="dh"><b>Compare rooms</b><button class="btn g" data-a="cdx">✕</button></div><div id="cdb" style="padding:16px"></div></dialog><div id="toasts" popover="manual" aria-live="polite"></div>
-<script src="script.js"></script></body></html>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+    <title>Hotelier – Luxury Hotel Reservations</title>
+    <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,500;6..96,700&family=Figtree:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+  </head>
+  <body>
+    <header>
+      <b>Hotelier</b>
+      <a href="#rooms">Rooms</a>
+      <a href="#compare">Compare</a>
+      <a href="#gallery">Gallery</a>
+      <a href="#admin">Admin</a>
+      <button class="btn g" id="sv" aria-pressed="false">♡ Saved <span id="wc">0</span></button>
+      <button class="btn g" id="th" aria-label="Toggle theme">◐</button>
+    </header>
+
+    <div class="hero">
+      <div class="w">
+        <h1>Quiet rooms, honest prices, your dates held.</h1>
+        <div class="sb">
+          <label>Check‑in<input type="date" id="ci"></label>
+          <label>Check‑out<input type="date" id="co"></label>
+          <label>Guests<select id="gs"></select></label>
+          <button class="btn ac" id="go">Check availability</button>
+          <label style="grid-column:1/-1">
+            Or just ask in plain words
+            <input id="nl" placeholder="Family room with parking and breakfast, below ₹6,000">
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <section id="rooms">
+      <div class="w">
+        <h2>Rooms &amp; suites</h2>
+        <p class="sub">Filters update instantly. Prices are per night before tax.</p>
+        <div class="bar">
+          <label>Max price: <b id="mxv"></b><input type="range" id="mx" min="2000" max="12000" step="500" value="12000"></label>
+          <label>
+            Sort
+            <select id="so">
+              <option value="rec">Selected for you</option>
+              <option value="pa">Price: low to high</option>
+              <option value="pd">Price: high to low</option>
+              <option value="rt">Top rated</option>
+            </select>
+          </label>
+          <div class="chips" id="am"></div>
+        </div>
+        <div class="grid" id="grid"></div>
+
+        <h3 style="margin:34px 0 12px">Selected for you</h3>
+        <div class="mini" id="picks"></div>
+
+        <div id="rvw" hidden>
+          <h3 style="margin:34px 0 12px">Recently viewed</h3>
+          <div class="mini" id="rv"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="tower">
+      <div class="w">
+        <h2>Explore the tower in 3D</h2>
+        <p class="sub">Drag to spin the building. Tap a floor to inspect that room, or blow the whole tower apart.</p>
+        <div class="bar">
+          <button class="btn ac" id="exb">💥 Explode tower</button>
+        </div>
+        <div class="stage" id="stg">
+          <div id="tw"></div>
+        </div>
+        <div id="ti" style="margin-top:14px"></div>
+      </div>
+    </section>
+
+    <section id="compare" style="background:var(--sf)">
+      <div class="w">
+        <h2>Compare rooms</h2>
+        <p class="sub">Tick “Compare” on up to three rooms.</p>
+        <div id="cmp"></div>
+      </div>
+    </section>
+
+    <section id="gallery">
+      <div class="w">
+        <h2>Inside Hotelier</h2>
+        <p class="sub">Tap any photo for fullscreen.</p>
+        <div class="gal" id="gl"></div>
+      </div>
+    </section>
+
+    <section id="admin" style="background:var(--sf)">
+      <div class="w">
+        <h2>Admin dashboard</h2>
+        <p class="sub">Computed live from sample records plus bookings made in this browser. A real deployment needs a login and a server.</p>
+        <div class="stats" id="st"></div>
+        <div class="ch">
+          <div>
+            <h3>Revenue by month</h3>
+            <div id="c1"></div>
+          </div>
+          <div>
+            <h3>Bookings by room</h3>
+            <div id="c2"></div>
+          </div>
+        </div>
+        <h3 style="margin:26px 0 8px">Latest bookings</h3>
+        <table id="bt"></table>
+      </div>
+    </section>
+
+    <footer class="w mut" style="padding:30px 18px 90px">
+      Hotelier demo. Runs entirely in your browser: no payment is taken and bookings live only in this device’s storage.
+    </footer>
+
+    <dialog id="dl"></dialog>
+
+    <dialog id="lb" style="width:min(1000px,96vw);background:#000">
+      <div class="dh" style="color:#fff">
+        <span id="lc"></span>
+        <span>
+          <button class="btn g" style="color:#fff" id="lp">‹</button>
+          <button class="btn g" style="color:#fff" id="ln">›</button>
+          <button class="btn g" style="color:#fff" id="lx">Close</button>
+        </span>
+      </div>
+      <img id="li" alt="" style="width:100%;max-height:78vh;object-fit:contain;display:block">
+    </dialog>
+
+    <div id="ai">
+      <div id="ap" role="dialog" aria-label="Travel assistant">
+        <div id="lg">
+          <p>Hi! Tell me what you need, e.g. “two people, under ₹5,000, with breakfast and wifi”. (Rule‑based demo, reading only this site’s room data.)</p>
+        </div>
+        <form id="af" style="display:flex;gap:6px">
+          <input id="aq" placeholder="Ask about rooms…" aria-label="Message">
+          <button type="button" class="btn g" id="mic" aria-label="Speak">🎤</button>
+          <button class="btn">Send</button>
+        </form>
+      </div>
+      <button class="btn ac" id="ab">✦ Assistant</button>
+    </div>
+
+    <div id="cb" class="cbar" hidden>
+      <span>⚖ Comparing <b id="cbn">0</b>/3</span>
+      <button class="btn ac" data-a="cbo">Compare now</button>
+    </div>
+
+    <dialog id="cd">
+      <div class="dh">
+        <b>Compare rooms</b>
+        <button class="btn g" data-a="cdx">✕</button>
+      </div>
+      <div id="cdb" style="padding:16px"></div>
+    </dialog>
+
+    <div id="toasts" popover="manual" aria-live="polite"></div>
+
+    <script src="script.js"></script>
+  </body>
+</html>
